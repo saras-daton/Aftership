@@ -1,0 +1,168 @@
+version: 2
+models:
+  - name: AftershipCouriers
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['slug','name','phone','web_url']
+      # partition_by: { 'field': 'reportDate', 'data_type': 'date' }
+      cluster_by: ['slug','name','phone','web_url'] 
+    columns:
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: slug
+        tests:
+          - not_null   
+      - name: name
+        tests:
+          - not_null
+      - name: web_url
+        tests:
+          - not_null
+      - name: default_language
+        tests:
+          - not_null
+
+  - name: AftershipUserActivatedCouriers
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['slug','name','phone','web_url']
+      # partition_by: { 'field': 'reportDate', 'data_type': 'timestamp', 'granularity': 'day' }
+      cluster_by: ['slug','name','phone','web_url'] 
+    columns:
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: slug
+        tests:
+          - not_null   
+      - name: name
+        tests:
+          - not_null
+      - name: web_url
+        tests:
+          - not_null
+      - name: default_language
+        tests:
+          - not_null
+
+  - name: AftershipTrackings
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['id']
+      partition_by: { 'field': 'created_at', 'data_type': 'timestamp', 'granularity': 'day'  }
+      cluster_by: ['id'] 
+    columns:
+      - name: id  
+        tests:   
+          - not_null   
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: active
+        tests:
+          - not_null 
+          - accepted_values:
+              values: ["True","False"] 
+      - name: tracking_number
+        tests:
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+      - name: order_number
+        tests:
+          - not_null
+      - name: tag
+        tests:
+          - not_null 
+          - accepted_values:
+              values: ["Exception","Delivered","InfoReceived","Expired","OutForDelivery","InTransit","AttemptFail","AvailableForPickup","Pending"]  
+      - name: created_at
+        tests:
+          - not_null
+      - name: updated_at
+        tests:
+          - not_null
+          - dbt_expectations.expect_row_values_to_have_recent_data:
+              datepart: day
+              interval: 1
+      - name: last_updated_at
+        tests:
+          - not_null 
+    tests:    
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - id
+
+  - name: AftershipTrackingsCheckpoints
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['id', 'checkpoints_created_at']
+      partition_by: { 'field': 'created_at', 'data_type': 'timestamp', 'granularity': 'day'  }
+      cluster_by: ['id','checkpoints_created_at'] 
+    columns:
+      - name: id  
+        tests:   
+          - not_null   
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: active
+        tests:
+          - not_null 
+          - accepted_values:
+              values: ["True","False"]
+      - name: tracking_number
+        tests:
+          - not_null
+          - relationships:
+              to: ref('AftershipTrackings')
+              field: tracking_number
+      - name: order_id
+        tests:
+          - not_null
+      - name: order_number
+        tests:
+          - not_null
+      - name: tag
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Exception","Delivered","InfoReceived","Expired","OutForDelivery","InTransit","AttemptFail","AvailableForPickup","Pending"]
+      - name: created_at
+        tests:
+          - not_null
+      - name: updated_at
+        tests:
+          - not_null
+          - dbt_expectations.expect_row_values_to_have_recent_data:
+              datepart: day
+              interval: 1
+      - name: last_updated_at
+        tests:
+          - not_null
+      # - name: checkpoints_created_at
+      #   tests:
+      #     - not_null
+    tests:   
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - id
+            - checkpoints_created_at
