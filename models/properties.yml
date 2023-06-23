@@ -5,7 +5,6 @@ models:
       materialized: incremental
       incremental_strategy: merge
       unique_key: ['slug','name','phone','web_url']
-      # partition_by: { 'field': 'reportDate', 'data_type': 'date' }
       cluster_by: ['slug','name','phone','web_url'] 
     columns:
       - name: brand
@@ -32,7 +31,6 @@ models:
       materialized: incremental
       incremental_strategy: merge
       unique_key: ['slug','name','phone','web_url']
-      # partition_by: { 'field': 'reportDate', 'data_type': 'timestamp', 'granularity': 'day' }
       cluster_by: ['slug','name','phone','web_url'] 
     columns:
       - name: brand
