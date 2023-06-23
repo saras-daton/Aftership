@@ -96,10 +96,10 @@ This package contains models from the Aftership API which includes reports on {{
 
 | **Category**                 | **Model**  | **Description** |
 | ------------------------- | ---------------| ----------------------- |
-|Customer | [AftershipCouriers](models/Aftership/AftershipCouriers.sql)  | A detailed report which gives infomration about Aftership Couriers |
-|Addresses | [AftershipUserActivatedCouriers](models/Aftership/AftershipUserActivatedCouriers.sql)  | A detailed report which gives infomration about the active users couriers |
-|Inventory | [AftershipTrackings](models/Aftership/AftershipTrackings.sql)  | A detailed report which gives infomration about shipment trackings |
-|Orders | [AftershipTrackingsCheckpoints](models/Aftership/AftershipTrackingsCouriers.sql)  | A detailed report which gives infomration about shipment trackings for every checkpoints |
+|Customer | [AftershipCouriers](models/Aftership/AftershipCouriers.sql)  | A detailed report which gives information about Aftership Couriers |
+|Addresses | [AftershipUserActivatedCouriers](models/Aftership/AftershipUserActivatedCouriers.sql)  | A detailed report which gives information about the active users' couriers |
+|Inventory | [AftershipTrackings](models/Aftership/AftershipTrackings.sql)  | A detailed report which gives information about shipment trackings |
+|Orders | [AftershipTrackingsCheckpoints](models/Aftership/AftershipTrackingsCouriers.sql)  | A detailed report which gives information about shipment trackings for every check points |
 
 
 
