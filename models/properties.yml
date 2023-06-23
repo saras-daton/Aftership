@@ -158,9 +158,9 @@ models:
       - name: last_updated_at
         tests:
           - not_null
-      # - name: checkpoints_created_at
-      #   tests:
-      #     - not_null
+      - name: checkpoints_created_at
+        tests:
+          - not_null
     tests:   
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
