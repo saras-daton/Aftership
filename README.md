@@ -1,92 +1,284 @@
-# EDM DBT
+# Aftership Data Unification
+
+This dbt package is for the Aftership data unification Ingested by [Daton](https://sarasanalytics.com/daton/). [Daton](https://sarasanalytics.com/daton/) is the Unified Data Platform for Global Commerce with 100+ pre-built connectors and data sets designed for accelerating the eCommerce data and analytics journey by [Saras Analytics](https://sarasanalytics.com).
+
+### Supported Datawarehouses:
+- BigQuery
+- Snowflake
+
+#### Typical challanges with raw data are:
+- Array/Nested Array columns which makes queries for Data Analytics complex
+- Data duplication due to look back period while fetching report data from Aftership
+- Seperate tables at marketplaces/Store, brand, account level for same kind of report/data feeds
+
+By doing Data Unification the above challenges can be overcomed and simplifies Data Analytics. 
+As part of Data Unification, the following funtions are performed:
+- Consolidation - Different marketplaces/Store/account & different brands would have similar raw Daton Ingested tables, which are consolidated into one table with column distinguishers brand & store
+- Deduplication - Based on primary keys, the data is De-duplicated and the latest records are only loaded into the consolidated stage tables
+- Incremental Load - Models are designed to include incremental load which when scheduled would update the tables regularly
+- Standardization -
+	- Currency Conversion (Optional) - Raw Tables data created at Marketplace/Store/Account level may have data in local currency of the corresponding marketplace/store/account. Values that are in local currency are standardized by converting to desired currency using Daton Exchange Rates data.
+	  Prerequisite - Exchange Rates connector in Daton needs to be present - Refer [this](https://github.com/saras-daton/currency_exchange_rates)
+	- Time Zone Conversion (Optional) - Raw Tables data created at Marketplace/Store/Account level may have data in local timezone of the corresponding marketplace/store/account. DateTime values that are in local timezone are standardized by converting to specified timezone using input offset hours.
+
+#### Prerequisite 
+Daton Integrations for  
+- Aftership 
+- Exchange Rates(Optional, if currency conversion is not required)
+
+*Note:* 
+*Please select 'Do Not Unnest' option while setting up Daton Integrataion*
+
+# Configuration 
+
+## Required Variables
+
+This package assumes that you have an existing dbt project with a BigQuery/Snowflake profile connected & tested. Source data is located using the following variables which must be set in your `dbt_project.yml` file.
+```yaml
+vars:
+    raw_database: "your_database"
+    raw_schema: "your_schema"
+```
+
+## Setting Target Schema
+
+Models will be create unified tables under the schema (<target_schema>_stg_Aftership). In case, you would like the models to be written to the target schema or a different custom schema, please add the following in the dbt_project.yml file.
+
+```yaml
+models:
+  aftership:
+    +schema: custom_schema_extension
+```
+
+## Optional Variables
+
+Package offers different configurations which must be set in your `dbt_project.yml` file. These variables can be marked as True/False based on your requirements. Details about the variables are given below.
+
+### Currency Conversion 
+
+To enable currency conversion, which produces two columns - exchange_currency_rate & exchange_currency_code, please mark the currency_conversion_flag as True. By default, it is False.
+Prerequisite - Daton Exchange Rates Integration
+
+Example:
+```yaml
+vars:
+    currency_conversion_flag: True
+```
+
+### Timezone Conversion
+
+To enable timezone conversion, which converts the timezone columns from UTC timezone to local timezone, please mark the timezone_conversion_flag as True in the dbt_project.yml file, by default, it is False. Additionally, you need to provide offset hours between UTC and the timezone you want the data to convert into for each raw table for which you want timezone converison to be taken into account.
+
+Example:
+```yaml
+vars:
+timezone_conversion_flag: True
+  raw_table_timezone_offset_hours: {
+    "Aftership.Raw.AftershipTrackings":-2,
+    "Aftership.Raw.AftershipTrackingsCouriers":-2
+  }
+```
+Here, -7 represents the offset hours between UTC and PDT considering we are sitting in PDT timezone and want the data in this timezone
+
+### Table Exclusions
+
+If you need to exclude any of the models, declare the model names as variables and mark them as False. Refer the table below for model details. By default, all tables are created.
+
+Example:
+```yaml
+vars:
+AftershipCouriers: False
+```
+
+## Models
+
+This package contains models from the Aftership API which includes reports on {{sales, margin, inventory, product}}. The primary outputs of this package are described below.
+
+| **Category**                 | **Model**  | **Description** |
+| ------------------------- | ---------------| ----------------------- |
+|Customer | [AftershipCouriers](models/Aftership/AftershipCouriers.sql)  | A detailed report which gives information about Aftership Couriers |
+|Addresses | [AftershipUserActivatedCouriers](models/Aftership/AftershipUserActivatedCouriers.sql)  | A detailed report which gives information about the active users' couriers |
+|Inventory | [AftershipTrackings](models/Aftership/AftershipTrackings.sql)  | A detailed report which gives information about shipment trackings |
+|Orders | [AftershipTrackingsCheckpoints](models/Aftership/AftershipTrackingsCouriers.sql)  | A detailed report which gives information about shipment trackings for every check points |
 
 
 
-## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### For details about default configurations for Table Primary Key columns, Partition columns, Clustering columns, please refer the properties.yaml used for this package as below. 
+	You can overwrite these default configurations by using your project specific properties yaml.
+```yaml
+version: 2
+models:
+  - name: AftershipCouriers
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['slug','name','phone','web_url']
+      cluster_by: ['slug','name','phone','web_url'] 
+    columns:
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: slug
+        tests:
+          - not_null   
+      - name: name
+        tests:
+          - not_null
+      - name: web_url
+        tests:
+          - not_null
+      - name: default_language
+        tests:
+          - not_null
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+  - name: AftershipUserActivatedCouriers
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['slug','name','phone','web_url']
+      cluster_by: ['slug','name','phone','web_url'] 
+    columns:
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: slug
+        tests:
+          - not_null   
+      - name: name
+        tests:
+          - not_null
+      - name: web_url
+        tests:
+          - not_null
+      - name: default_language
+        tests:
+          - not_null
 
-## Add your files
+  - name: AftershipTrackings
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['id']
+      partition_by: { 'field': 'created_at', 'data_type': 'timestamp', 'granularity': 'day'  }
+      cluster_by: ['id'] 
+    columns:
+      - name: id  
+        tests:   
+          - not_null   
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: active
+        tests:
+          - not_null 
+          - accepted_values:
+              values: ["True","False"] 
+      - name: tracking_number
+        tests:
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+      - name: order_number
+        tests:
+          - not_null
+      - name: tag
+        tests:
+          - not_null 
+          - accepted_values:
+              values: ["Exception","Delivered","InfoReceived","Expired","OutForDelivery","InTransit","AttemptFail","AvailableForPickup","Pending"]  
+      - name: created_at
+        tests:
+          - not_null
+      - name: updated_at
+        tests:
+          - not_null
+          - dbt_expectations.expect_row_values_to_have_recent_data:
+              datepart: day
+              interval: 1
+      - name: last_updated_at
+        tests:
+          - not_null 
+    tests:    
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - id
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+  - name: AftershipTrackingsCheckpoints
+    config:
+      materialized: incremental
+      incremental_strategy: merge
+      unique_key: ['id', 'checkpoints_created_at']
+      partition_by: { 'field': 'created_at', 'data_type': 'timestamp', 'granularity': 'day'  }
+      cluster_by: ['id','checkpoints_created_at'] 
+    columns:
+      - name: id  
+        tests:   
+          - not_null   
+      - name: brand
+        tests:
+          - not_null
+      - name: store
+        tests:
+          - not_null
+      - name: active
+        tests:
+          - not_null 
+          - accepted_values:
+              values: ["True","False"]
+      - name: tracking_number
+        tests:
+          - not_null
+          - relationships:
+              to: ref('AftershipTrackings')
+              field: tracking_number
+      - name: order_id
+        tests:
+          - not_null
+      - name: order_number
+        tests:
+          - not_null
+      - name: tag
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Exception","Delivered","InfoReceived","Expired","OutForDelivery","InTransit","AttemptFail","AvailableForPickup","Pending"]
+      - name: created_at
+        tests:
+          - not_null
+      - name: updated_at
+        tests:
+          - not_null
+          - dbt_expectations.expect_row_values_to_have_recent_data:
+              datepart: day
+              interval: 1
+      - name: last_updated_at
+        tests:
+          - not_null
+      - name: checkpoints_created_at
+        tests:
+          - not_null
+    tests:   
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - id
+            - checkpoints_created_at
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.sarasanalytics.com/enterprise-data-model/data-transformation/edm-dbt.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
 
-- [ ] [Set up project integrations](https://gitlab.sarasanalytics.com/enterprise-data-model/data-transformation/edm-dbt/-/settings/integrations)
 
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## Resources:
+- Have questions, feedback, or need [help](https://calendly.com/srinivas-janipalli/30min)? Schedule a call with our data experts or email us at info@sarasanalytics.com.
+- Learn more about Daton [here](https://sarasanalytics.com/daton/).
+- Refer [this](https://youtu.be/6zDTbM6OUcs) to know more about how to create a dbt account & connect to {{Bigquery/Snowflake}}
